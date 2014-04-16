@@ -89,6 +89,7 @@ int main() {
   // Loop though all the elements of UDD zone
   for(it=0;it<(udd_time-1);it++) {
     //Loop through all the elements in the height for a length of 1s
+    while(P[n] - P[0] > udd_drop) {
     for(iz=0;iz<(n-1);iz++) {
       // Compute all variables;
       Cpg = 881 + 0.31*Tg[iz][it] - 7.98e-5*pow(Tg[iz][it], 2);
@@ -176,6 +177,7 @@ int main() {
       Yh2o[iz+1][it+1] = Yh2o[it][iz] - Rw*tstep/fs;
       Yc[iz+1][it+1] = Yc[it][iz] - Rc*tstep/fs;
 
+    }
     }
   }
 
