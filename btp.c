@@ -249,7 +249,7 @@ int main() {
       /* printf("Modified vg = %lf\n", vg); */
     }
     P[n-1] = 0;
-    printf('.');
+    printf(".");
     //printf("Pdiff = %lf, P[0] = %lf, P[n-1] = %lf \n", Pdiff, P[0], P[n-1]);
   }
   end = clock();
