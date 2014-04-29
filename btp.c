@@ -82,14 +82,13 @@ int main() {
 
   // Initialize the parameters that change during the course
   // of the process.
-  double Ts[n][time], Xo2[n], Tg[n][time], Yh2o[n][udd_time],
-    Yc[n][udd_time], P[n], Xh2o[n];
+  double Ts[n][time], Xo2[n], Tg[n][time], Yh2o[n][time],
+    Yc[n][time], P[n], Xh2o[n];
 
   // Set initial values for various variables
   Xo2[0] = 21.0;
   Xh2o[0] = 0.056;
   P[0] = 0;
-  Yh2o[0][0] = 0.131;
 
   // Initialize assumed inlet gas temperatures
   for(it=0; it<udd_time; it++)
@@ -99,14 +98,15 @@ int main() {
   for(it=ddd_time; it<fz_time; it++)
     Tg[n-1][it] = 907 + 273.15;
 
+  printf("Initialized Tg");
   // All solids enter the furnace at room temp i.e. 298K
   for(iz=0;iz<n;iz++) {
       for(it=0;it<time;it++) {
         Ts[iz][it] = 298.15;
         Yc[iz][it] = 1.4;
+        Yh2o[iz][it] = 0.131;
       }
   }
-
   printf("UDD_TIME is %d\n", udd_time);
   printf("DDD_TIME is %d\n", ddd_time);
   printf("FZ_TIME is  %d\n", fz_time);
@@ -115,33 +115,37 @@ int main() {
 
   begin = clock();
   // Loop though all the elements
-  for(it=0; it<time-1; it++) {
-    printf("%d", it);
+  for(it=0; it<udd_time-1; it++) {
     if(it<udd_time){
       dp = udd_drop;
       start = 0;
-      stop = n-1;
+      stop = n;
       incr = 1;
+      P[0] = 0;
     }
     else if(it<ddd_time && it>udd_time) {
       dp = ddd_drop;
       start = n-1;
-      stop = 1;
+      stop = 0;
       incr = -1;
+      P[n-1] = 0;
     }
     else if(it<fz_time && it>ddd_time) {
       dp = fz_drop;
       start = n-1;
-      stop = 1;
+      stop = 0;
       incr = -1;
+      P[n-1] = 0;
     }
     else {
       dp = cz_drop;
       start = 0;
-      stop = n-1;
+      stop = n;
       incr = 1;
+      P[0] = 0;
     }
     while(dp > abs(P[n-1] - P[0])) {
+      printf("%lf \n", P[n-1]);
       for(iz=start; iz<stop;iz+=incr) {
         // Compute all variables;
         Cpg = 881 + 0.31*Tg[iz][it] - 7.98e-5*pow(Tg[iz][it], 2);
@@ -151,6 +155,7 @@ int main() {
 
         val = Yh2o[iz][it]/(1-Yh2o[iz][it]);
         pg = 219.38*(1+val)/((0.622 + val)*Tg[iz][it]);
+        //printf("Tg = %lf", Tg[iz][it]);
 
         Do2c = 0.435e-5*pow((Tg[iz][it]/298.15), 1.5)/(pow((0.29), -9.41));
         Dco2 = 7.166666e-10*pow(Tg[iz][it], 1.75);
@@ -218,11 +223,12 @@ int main() {
         Xh2o[iz+incr] = Xh2o[iz] + Rw*zstep/fg;
 
         Tg[iz+incr][it] = Tg[iz][it] + (Rw*Hw - hgs*as*(Tg[iz][it] -Ts[iz][it]))*zstep/(fg*Cpg);
-        //        printf("%lf = %lf + (%lf*%lf - %lf*%lf(%lf-%lf))*%lf/(%lf*%lf)\n", Tg[iz+1][it])
-        //     , Tg[iz][it], Rw, Hw, hgs, as, Tg[iz][it], Ts[iz][it], zstep, fg, Cpg);
+        //printf("%lf = %lf + (%lf*%lf - %lf*%lf(%lf-%lf))*%lf/(%lf*%lf)\n", Tg[iz+1][it]
+        //       , Tg[iz][it], Rw, Hw, hgs, as, Tg[iz][it], Ts[iz][it], zstep, fg, Cpg);
 
         P[iz+incr] = P[iz] - (150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
                            1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
+        //printf("P[%d] = %lf\n", iz+incr, P[iz]);
         //printf(" DP = %lf \n", ((150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
         //1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)))*zstep);
         //printf("vg = %lf de = %lf pg = %lf ug = %lf\n", vg, de, pg, ug);
@@ -234,8 +240,8 @@ int main() {
 
         fg = fg + (Rw + Rc)*zstep;
         //printf("fg = %lf \n", fg);
-        Yh2o[iz+incr][it+1] = Yh2o[it][iz] - Rw*tstep/fs;
-        Yc[iz+incr][it+1] = Yc[it][iz] - Rc*tstep/fs;
+        Yc[iz][it+1] = Yc[iz][it] - Rc*tstep/fs;
+        Yh2o[iz][it+1] = Yh2o[iz][it] - Rw*tstep/fs;
       }
       // TODO: Find a better method to improve vg using ergun's eqn
       vg = vg + 0.05;
@@ -248,20 +254,16 @@ int main() {
       /* } */
       /* printf("Modified vg = %lf\n", vg); */
     }
-    P[n-1] = 0;
     printf(".");
     //printf("Pdiff = %lf, P[0] = %lf, P[n-1] = %lf \n", Pdiff, P[0], P[n-1]);
   }
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time spent = %lf", time_spent);
-  /* for(iz=n-1; iz>1; iz-=2) { */
-  /*   printf("%lf \n", P[iz]); */
-  /* } */
-  /* for(iz=n-1;iz>=0;iz--){ */
-  /*   for(it=0;it<udd_time;it+=15) */
-  /*     printf("%.2lf ",Ts[iz][it] - 273.15); */
-  /*   printf("\n"); */
-  /* } */
+  printf("Time spent = %lf\n", time_spent);
+  for(iz=n-1;iz>0;iz--){
+    for(it=0;it<udd_time;it+=15)
+      printf("%.2lf ",Ts[iz][it] - 273.15);
+    printf("\n");
+  }
   return 0;
 }
