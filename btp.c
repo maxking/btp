@@ -171,8 +171,7 @@ int main() {
         //        printf("%lf = %lf + (%lf*%lf - %lf*%lf(%lf-%lf))*%lf/(%lf*%lf)\n", Tg[iz+1][it])
         //     , Tg[iz][it], Rw, Hw, hgs, as, Tg[iz][it], Ts[iz][it], zstep, fg, Cpg);
 
-        P[iz+1] = P[iz] - (150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
-                           1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
+        P[iz+1] = P[iz] - (1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
         //printf(" DP = %lf \n", ((150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
         //1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)))*zstep);
         //printf("vg = %lf de = %lf pg = %lf ug = %lf\n", vg, de, pg, ug);
@@ -181,12 +180,15 @@ int main() {
         //printf("Ts[%d][%d] = %lf, Tg = %lf, hgs = %lf, as = %lf, Rw = %lf, Hw = %lf, fs = %lf, Cps = %lf\n", iz, it, Ts[iz][it], Tg[iz][it], hgs, as, Rw, Hw, fs, Cps);
         //printf("Tg = %lf \t Ts = %lf \n", Tg[iz][it], Ts[iz][it]);
 
-        fg = fg + (Rw + Rc)*zstep;
+        //fg = fg + (Rw + Rc)*zstep;
         //printf("fg = %lf \n", fg);
         Yh2o[iz+1][it+1] = Yh2o[it][iz] - Rw*tstep/fs;
         Yc[iz+1][it+1] = Yc[it][iz] - Rc*tstep/fs;
       }
-      vg = vg + 0.05;
+      //vg = vg + 0.05;
+      vg = vg*sqrt(udd_drop/(abs(P[0]-P[n-1])));
+      // + ((udd_drop-abs(P[0]-P[n-1]))*de*pow(eb, 2)*phi)/(2*vg*1.75*pg*(1-eb)*z);
+      //printf("vg = %lf\n", vg);
       //      printf("P[n-1] = %lf\n", P[n-1]);
       /* Pdiff = P[0] - P[n-1] - udd_drop; */
       /* printf("Pdiff = %lf\n", Pdiff); */
@@ -195,7 +197,8 @@ int main() {
       /* } */
       /* printf("Modified vg = %lf\n", vg); */
     }
-    P[n-1] = 0;
+    if(it<udd_time)
+      P[n-1] = 0;
     //printf("Pdiff = %lf, P[0] = %lf, P[n-1] = %lf \n", Pdiff, P[0], P[n-1]);
   }
   /* for(iz=n-1; iz>1; iz-=2) { */
