@@ -26,7 +26,8 @@ int main() {
     Xch2o, pc, Do2n2, Do2c, de, dc, Cco2e, Cco2, Dsco2,
     Dco2, EL, ug, Cu, dl, u0, rl, ps, el, nl, Tr2, Tr1, m,
     K1, K2, K3, KL, Kl, Kc, kmc, kpl, kpc, Sh, Sc, Sc2, Re,
-    val, Rl, Hl, udd_drop, ddd_drop, fz_drop, cz_drop, Pdiff ,dp;
+    val, Rl, Hl, udd_drop, ddd_drop, fz_drop, cz_drop, Pdiff ,
+    dp, udd_area, ddd_area, fz_area, cz_area, furnace_area;
 
   // Simulation Variables
   double zstep, tstep;
@@ -34,6 +35,7 @@ int main() {
     start, stop, incr;
 
   // Initialize the constants
+  furnace_area = 400;
   Twc = 647.0;
   Hwnb = 2256000;
   Twb = 99.98 + 273.15;
@@ -41,12 +43,16 @@ int main() {
   grate_length = 105.0;
   udd_length = 9.0;
   udd_drop = 4000;
+  udd_area = udd_length*furnace_area/grate_length;
   ddd_length = 22.5;
   ddd_drop = 4000;
+  ddd_area = ddd_length*furnace_area/grate_length;
   fz_length = 78.0;
   fz_drop = 29;
+  fz_area = fz_length*furnace_area/grate_length;
   cz_length = 90.0;
   cz_drop = 48;
+  cz_area = cz_length*furnace_area/grate_length;
   grate_speed = 0.035;   // 2.1 m/min
   z = 0.55;
   zstep = 0.01;
@@ -71,7 +77,7 @@ int main() {
   el = 0.3;
   nl = 1000.0;
   fs = ps;
-  fg = ps*vg;
+  fg = vg*pg;
   as = 6*(1-eb)/(ds*phi);
   n =  z/zstep;
   time = (int) grate_length/grate_speed;
@@ -89,7 +95,6 @@ int main() {
   Xo2[0] = 21.0;
   Xh2o[0] = 0.056;
   P[0] = 0;
-
   // Initialize assumed inlet gas temperatures
   for(it=0; it<udd_time; it++)
     Tg[0][it] = 189 + 273.15;
@@ -122,6 +127,7 @@ int main() {
       stop = n;
       incr = 1;
       P[0] = 0;
+      fg = vg*udd_area*pg/eb;
     }
     else if(it<ddd_time && it>udd_time) {
       dp = ddd_drop;
@@ -129,6 +135,7 @@ int main() {
       stop = 0;
       incr = -1;
       P[n-1] = 0;
+      fg = vg*ddd_area*pg/eb;
     }
     else if(it<fz_time && it>ddd_time) {
       dp = fz_drop;
@@ -136,6 +143,7 @@ int main() {
       stop = 0;
       incr = -1;
       P[n-1] = 0;
+      fg = vg*fz_area*pg/eb;
     }
     else {
       dp = cz_drop;
@@ -143,13 +151,13 @@ int main() {
       stop = n;
       incr = 1;
       P[0] = 0;
+      fg = vg*cz_area*pg/eb;
     }
-    while(dp > abs(P[n-1] - P[0])) {
-      printf("%lf \n", P[n-1]);
-      for(iz=start; iz<stop;iz+=incr) {
+    //    while(dp > abs(P[n-1] - P[0])) {
+      for(iz=0; iz<n-1;iz++) {
         // Compute all variables;
         Cpg = 881 + 0.31*Tg[iz][it] - 7.98e-5*pow(Tg[iz][it], 2);
-        // printf("Cpg = %lf Tg = %lf\n", Cpg, Tg[iz][it]);
+        printf("Cpg = %lf Tg = %lf\n", Cpg, Tg[iz][it]);
         ug = u0*pow((Tg[iz][it]/273.15), 1.5)*((Cu+273.15)/(Cu + Tg[iz][it]));
         //printf("ug = %lf Tg = %lf \n", ug, Tg[iz][it]);
 
@@ -191,8 +199,8 @@ int main() {
         Kl = exp(7.35 - 5211/Ts[iz][it]);
         Cco2e = 1000*Kl/(82.057*Ts[iz][it]);
         hgs = (phi*vg*pg*Cpg)/(6*(1-eb)*clf);
-        // printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n",
-        //       hgs, phi, vg, pg, Cpg, eb, clf);
+        printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n",
+               hgs, phi, vg, pg, Cpg, eb, clf);
 
         Hl = 95.15909*(4.5*Ts[iz][it] - EL);
         if (Ts[iz][it] < 1053) {
@@ -223,11 +231,12 @@ int main() {
         Xh2o[iz+incr] = Xh2o[iz] + Rw*zstep/fg;
 
         Tg[iz+incr][it] = Tg[iz][it] + (Rw*Hw - hgs*as*(Tg[iz][it] -Ts[iz][it]))*zstep/(fg*Cpg);
+        printf("fg = %lf, pg = %lf, vg = %lf\n", fg, pg, vg);
         //printf("%lf = %lf + (%lf*%lf - %lf*%lf(%lf-%lf))*%lf/(%lf*%lf)\n", Tg[iz+1][it]
         //       , Tg[iz][it], Rw, Hw, hgs, as, Tg[iz][it], Ts[iz][it], zstep, fg, Cpg);
 
-        P[iz+incr] = P[iz] - (150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
-                           1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
+        P[iz+incr] = P[iz] - ((150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
+                               1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep);
         //printf("P[%d] = %lf\n", iz+incr, P[iz]);
         //printf(" DP = %lf \n", ((150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
         //1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)))*zstep);
@@ -235,17 +244,17 @@ int main() {
 
         Ts[iz][it+1] = Ts[iz][it] + (hgs*as*(Tg[iz][it] - Ts[iz][it]) - Rw*Hw + Rc*Hc - Rl*Hl)*tstep/(fs*Cps);
         //printf("Ts[%d][%d] = %lf, Tg = %lf, hgs = %lf, as = %lf, Rw = %lf, Hw = %lf, fs = %lf, Cps = %lf\n",
-        // iz, it, Ts[iz][it], Tg[iz][it], hgs, as, Rw, Hw, fs, Cps);
+        //iz, it, Ts[iz][it], Tg[iz][it], hgs, as, Rw, Hw, fs, Cps);
         //printf("Tg = %lf \t Ts = %lf \n", Tg[iz][it], Ts[iz][it]);
 
-        fg = fg + (Rw + Rc)*zstep;
+        //fg = fg + (Rw + Rc)*zstep;
         //printf("fg = %lf \n", fg);
         Yc[iz][it+1] = Yc[iz][it] - Rc*tstep/fs;
         Yh2o[iz][it+1] = Yh2o[iz][it] - Rw*tstep/fs;
       }
+        //vg = vg + 0.03;
       // TODO: Find a better method to improve vg using ergun's eqn
-      vg = vg + 0.05;
-
+      // vg = vg + ((dp-abs(P[0]-P[n-1]))*de*pow(eb, 2)*phi)/(2*vg*1.75*pg*(1-eb));
       //      printf("P[n-1] = %lf\n", P[n-1]);
       /* Pdiff = P[0] - P[n-1] - udd_drop; */
       /* printf("Pdiff = %lf\n", Pdiff); */
@@ -253,14 +262,14 @@ int main() {
       /*   vg = vg + 0.3; */
       /* } */
       /* printf("Modified vg = %lf\n", vg); */
-    }
+      //}
     printf(".");
     //printf("Pdiff = %lf, P[0] = %lf, P[n-1] = %lf \n", Pdiff, P[0], P[n-1]);
   }
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   printf("Time spent = %lf\n", time_spent);
-  for(iz=n-1;iz>0;iz--){
+  for(iz=1;iz<n-1;iz++){
     for(it=0;it<udd_time;it+=15)
       printf("%.2lf ",Ts[iz][it] - 273.15);
     printf("\n");
