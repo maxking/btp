@@ -13,7 +13,7 @@ Topic: Simulation of pellet induration cycle for iron ore pellets
 
 int main() {
   // Furnace Parameters
-  double grate_length, udd_length, ddd_length, rc_length, cz1_length,
+  double grate_length, udd_length, ddd_length, ph_length, fz_length, cz_length,
     cz2_length, grate_speed, z;
   // Process conditions
   double hgs, phi, vg, pg, Cpg, Cps, eb, clf, Tdry,  as,
@@ -21,10 +21,12 @@ int main() {
     Xch2o, pc, Do2n2, Do2c, de, dc, Cco2e, Cco2, Dsco2,
     Dco2, EL, ug, Cu, dl, u0, rl, ps, el, nl, Tr2, Tr1, m,
     K1, K2, K3, KL, Kl, Kc, kmc, kpl, kpc, Sh, Sc, Sc2, Re,
-    val, Rl, Hl, udd_drop, Pdiff;
+    val, Rl, Hl, udd_drop, ddd_drop, ph_drop, fz_drop,
+    cz_drop, Pdiff ,dp;
   // Simulation Variables
   double zstep, tstep;
-  int n, time, udd_time, ddd_time, rc_time, cz1_time, cz2_time;
+  int n, time, udd_time, ddd_time, ph_time, fz_time, cz_time, cz2_time
+    , start, stop, incr;
   // Required Arrays
 
 
@@ -36,8 +38,13 @@ int main() {
   udd_length = 9.0;
   udd_drop = 4000;
   ddd_length = 22.5;
-  rc_length = 78.0;
-  cz1_length = 90.0;
+  ddd_drop = 4000;
+  ph_length = 42;
+  ph_drop = 2900;
+  fz_length = 78.0;
+  fz_drop = 2900;
+  cz_length = 105.0;
+  cz_drop = 4800;
   grate_speed = 0.035;   // 2.1 m/min
   z = 0.55;
   zstep = 0.01;
@@ -67,33 +74,86 @@ int main() {
   n =  z/zstep;
   time = (int) grate_length/grate_speed;
   udd_time = (int) udd_length/grate_speed;
+  ddd_time = (int) ddd_length/grate_speed;
+  ph_time = (int) ph_length/grate_speed;
+  fz_time = (int) fz_length/grate_speed;
+  cz_time = (int) grate_length/grate_speed;
 
   double Ts[n][time], Xo2[n], Tg[n][time], Yh2o[n][udd_time],
     Yc[n][udd_time], P[n], Xh2o[n];
   // Assumed inlet gas temperature for UDD zone
-  Xo2[0] = 21.0;
+  Xo2[0] = 0.21;
   Xh2o[0] = 0.056;
   P[0] = 0;
-  Yh2o[0][0] = 0.131;
   // All solids enter the furnace at room temp i.e. 298K
   int iz, it;
-  for(it=0;it<udd_time;it++)
+
+  for(it=0; it<udd_time; it++)
     Tg[0][it] = 189 + 273.15;
-  for(iz=0;iz<n;iz++) {
-      for(it=0;it<udd_time;it++) {
-        Ts[iz][it] = 298.15;
-        Yc[iz][it] = 1.4;
-      }
+  for(it=udd_time; it<ddd_time; it++)
+    Tg[n-1][it] = 213 + 273.15;
+  for(it=ddd_time; it<ph_time; it++)
+    Tg[n-1][it] = 450 + 273.15;
+  for(it=ph_time; it<fz_time; it++)
+    Tg[n-1][it] = 907 + 273.15;
+  for(it=fz_time; it<time; it++)
+    Tg[0][it] = 25 + 273.15;
+
+  for(iz=0;iz<n;iz++){
+    Ts[iz][0] = 298.15;
+    Yc[iz][0] = .014;
+    Yh2o[iz][0] = 0.131;
   }
 
   printf("UDD_TIME is %d \n", udd_time);
+  printf("DDD_TIME is %d \n", ddd_time);
+  printf("PH_TIME is %d \n", ph_time);
+  printf("FZ_TIME is %d \n", fz_time);
+  printf("CZ_TIME is %d \n", cz_time);
   printf("Number of elements are %d \n", n);
   // Loop though all the elements of UDD zone
-  for(it=0; it<udd_time-1; it++) {
+  for(it=0; it<time; it++) {
+    if(it<udd_time){
+      dp = udd_drop;
+      start = 0;
+      stop = n;
+      incr = 1;
+    }
+    if(it<ddd_time && it>=udd_time) {
+      dp = ddd_drop;
+      start = n-1;
+      stop = n;
+      incr = -1;
+      // vg = 0.383;
+    }
+    else if(it<ph_time && it>=ddd_time) {
+      dp = ph_drop;
+      start = n-1;
+      stop = n;
+      incr = -1;
+      vg = 0.383;
+    }
+    else if(it<=fz_time && it>=ph_time) {
+      dp = fz_drop;
+      start = n-1;
+      stop = n;
+      incr = -1;
+      //vg = 0.383;
+      //      P[n-1] = 0;
+    }
+    else if(it >= fz_time){
+      dp = cz_drop;
+      start = 0;
+      stop = n;
+      incr = 1;
+      //P[0] = 0;
+    }
+    printf("it = %d\n", it);
     // Loop through all the elements in the height for a length of 1s
-    while(udd_drop > abs(P[n-1])) {
-      for(iz=0;iz<n-1;iz++) {
+    while(dp > abs(P[n-1] - P[0])) {
+      for(iz=start;iz<stop && iz>=0;iz=iz+incr) {
         // Compute all variables;
+        printf("iz= %d, it = %d, Tg = %lf, Ts = %lf ", iz, it, Tg[iz][it], Ts[iz][it]);
         Cpg = 881 + 0.31*Tg[iz][it] - 7.98e-5*pow(Tg[iz][it], 2);
         // printf("Cpg = %lf Tg = %lf\n", Cpg, Tg[iz][it]);
         ug = u0*pow((Tg[iz][it]/273.15), 1.5)*((Cu+273.15)/(Cu + Tg[iz][it]));
@@ -101,6 +161,7 @@ int main() {
 
         val = Yh2o[iz][it]/(1-Yh2o[iz][it]);
         pg = 219.38*(1+val)/((0.622 + val)*Tg[iz][it]);
+        //printf("val = %lf, Tg = %lf, Yh2o =  %lf \n ", val, Tg[iz][it], Yh2o[iz][it]);
 
         Do2c = 0.435e-5*pow((Tg[iz][it]/298.15), 1.5)/(pow((0.29), -9.41));
         Dco2 = 7.166666e-10*pow(Tg[iz][it], 1.75);
@@ -136,7 +197,7 @@ int main() {
         Kl = exp(7.35 - 5211/Ts[iz][it]);
         Cco2e = 1000*Kl/(82.057*Ts[iz][it]);
         hgs = (phi*vg*pg*Cpg)/(6*(1-eb)*clf);
-        // printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n",
+        //printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n",
         //       hgs, phi, vg, pg, Cpg, eb, clf);
 
         Hl = 95.15909*(4.5*Ts[iz][it] - EL);
@@ -158,22 +219,22 @@ int main() {
         }
 
         Tdry = (Tg[iz][it]+Ts[iz][it])/2;
-        if (Yh2o[iz][it] > Xch2o)
+        if (Xh2o[iz] > Xch2o)
           Rw = as*hgs*(Tg[iz][it]-Tdry)/Hw;
         else
           Rw = as*hgs*(Tg[iz][it]-Tdry)*Xh2o[iz]/(Hw*Xch2o);
+        //printf("Tg[%d][%d]=%lf\n", iz, it, Tg[iz][it]);
 
-        Xo2[iz+1] = Xo2[iz] - Rc*zstep/fg;
+        Xo2[iz+incr] = Xo2[iz] - Rc*zstep/fg;
 
-        Xh2o[iz+1] = Xh2o[iz] + Rw*zstep/fg;
+        Xh2o[iz+incr] = Xh2o[iz] + Rw*zstep/fg;
 
-        Tg[iz+1][it] = Tg[iz][it] + (Rw*Hw - hgs*as*(Tg[iz][it] -Ts[iz][it]))*zstep/(fg*Cpg);
+        Tg[iz+incr][it] = Tg[iz][it] + (Rw*Hw - hgs*as*(Tg[iz][it] -Ts[iz][it]))*zstep/(fg*Cpg);
         //        printf("%lf = %lf + (%lf*%lf - %lf*%lf(%lf-%lf))*%lf/(%lf*%lf)\n", Tg[iz+1][it])
         //     , Tg[iz][it], Rw, Hw, hgs, as, Tg[iz][it], Ts[iz][it], zstep, fg, Cpg);
 
-        P[iz+1] = P[iz] - (1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
-        //printf(" DP = %lf \n", ((150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) +
-        //1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)))*zstep);
+        P[iz+incr] = P[iz] - (1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi))*zstep;
+        printf(" DP = %lf \n", ((1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)))*zstep);
         //printf("vg = %lf de = %lf pg = %lf ug = %lf\n", vg, de, pg, ug);
 
         Ts[iz][it+1] = Ts[iz][it] + (hgs*as*(Tg[iz][it] - Ts[iz][it]) - Rw*Hw + Rc*Hc - Rl*Hl)*tstep/(fs*Cps);
@@ -182,11 +243,12 @@ int main() {
 
         //fg = fg + (Rw + Rc)*zstep;
         //printf("fg = %lf \n", fg);
-        Yh2o[iz+1][it+1] = Yh2o[it][iz] - Rw*tstep/fs;
-        Yc[iz+1][it+1] = Yc[it][iz] - Rc*tstep/fs;
+        Yh2o[iz][it+1] = Yh2o[it][iz] - Rw*tstep/fs;
+        //printf("Rw = %lf, fs = %lf, it = %d , Hw = %lf\n", Rw, fs, it, Hw);
+        Yc[iz][it+1] = Yc[it][iz] - Rc*tstep/fs;
       }
       //vg = vg + 0.05;
-      vg = vg*sqrt(udd_drop/(abs(P[0]-P[n-1])));
+      vg = vg*sqrt(dp/(abs(P[0]-P[n-1])));
       // + ((udd_drop-abs(P[0]-P[n-1]))*de*pow(eb, 2)*phi)/(2*vg*1.75*pg*(1-eb)*z);
       //printf("vg = %lf\n", vg);
       //      printf("P[n-1] = %lf\n", P[n-1]);
@@ -199,13 +261,19 @@ int main() {
     }
     if(it<udd_time)
       P[n-1] = 0;
+    else if(it<ddd_time && it>=udd_time)
+      P[0] = 0;
+    else if(it<fz_time && it>=ddd_time)
+      P[0] = 0;
+    else if(it<cz_time && it>=fz_time)
+      P[n-1] = 0;
     //printf("Pdiff = %lf, P[0] = %lf, P[n-1] = %lf \n", Pdiff, P[0], P[n-1]);
   }
   /* for(iz=n-1; iz>1; iz-=2) { */
   /*   printf("%lf \n", P[iz]); */
   /* } */
   for(iz=n-1;iz>=0;iz--){
-    for(it=0;it<udd_time;it+=15)
+    for(it=0;it<ddd_time;it+=39)
       printf("%.2lf ",Ts[iz][it] - 273.15);
     printf("\n");
   }
