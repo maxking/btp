@@ -4,7 +4,7 @@ Project: B.Tech Project
 Session: 2013-14
 Guide: Prof T. K. Kundu
 Topic: Simulation of pellet induration cycle for iron ore pellets
-***************************************************************/
+******************************************************************/
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -57,13 +57,13 @@ int main() {
   uddz.area = uddz.len*furnace_area/grate_length;
   dddz.len = 22.5;
   dddz.pressure_drop = 4000;
-  dddz.area = dddz.len*furnace_area/grate_length;
+  dddz.area = (dddz.len-uddz.len)*furnace_area/grate_length;
   fz.len = 78.0;
   fz.pressure_drop = 2900;
-  fz.area = fz.len*furnace_area/grate_length;
+  fz.area = (fz.len-dddz.len)*furnace_area/grate_length;
   cz.len = 90.0;
   cz.pressure_drop = 4800;
-  cz.area = cz.len*furnace_area/grate_length;
+  cz.area = (cz.len-fz.len)*furnace_area/grate_length;
   grate_speed = 0.035;   // 2.1 m/min
   z = 0.55;
   // Furnace Properties End
@@ -131,7 +131,7 @@ int main() {
   printf("CZ_TIME is %d\n", cz.time);
   printf("Number of elements are %d\n", n);
 
-  for(it=0; it<fz.time; it++) {
+  for(it=0; it<dddz.time; it++) {
 
 	if(it == fz.time)
 	  vg = 0.3833;
@@ -215,8 +215,8 @@ int main() {
 
 	  hgs = (phi*vg*pg*Cpg)/(6*(1-eb)*clf);
 
-	  printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n",
-	         hgs, phi, vg, pg, Cpg, eb, clf);
+	  /* printf("hgs = %lf phi = %lf vg = %lf pg = %lf Cpg = %lf eb= %lf clf  = %f\n", */
+	  /*        hgs, phi, vg, pg, Cpg, eb, clf); */
 
 	  Hl = 95.15909*(4.5*Ts[iz][it] - EL);
 
@@ -293,7 +293,7 @@ int main() {
   }
   printf("\n");
   for(iz=n-1;iz>0;iz--){
-    for(it=0;it<fz.time;it+=50)
+    for(it=0;it<uddz.time;it+=18)
       printf("%.0lf ",Ts[iz][it] - 273.15);
     printf("\n");
   }
