@@ -38,7 +38,7 @@ int main() {
     Xch2o, pc, Do2n2, Do2c, de, dc, Cco2e, Cco2, Dsco2,
     Dco2, EL, ug, Cu, dl, u0, rl, ps, el, nl, Tr2, Tr1, m,
     K1, K2, K3, KL, Kl, Kc, kmc, kpl, kpc, Sh, Sc, Sc2, Re,
-    val, Rl, Hl, furnace_area, dp, Pdiff;
+    val, Rl, Hl, furnace_area, dp, Pdiff, Qm, Tm;
 
   // Simulation Variables
   double zstep, tstep;
@@ -62,14 +62,21 @@ int main() {
   fz.pressure_drop = 2900;
   fz.area = (fz.len-dddz.len)*furnace_area/grate_length;
   cz.len = 90.0;
-  cz.pressure_drop = 4800;
+  cz.pressure_drop = 4200;
+  cz.len = 90.0;
+  cz.pressure_drop = 4200;
+  cz.area = (cz.len-fz.len)*furnace_area/grate_length;
+  cz.len = 90.0;
+  cz.pressure_drop = 4200;
+  cz.len = 90.0;
+  cz.pressure_drop = 4400;
   cz.area = (cz.len-fz.len)*furnace_area/grate_length;
   grate_speed = 0.035;   // 2.1 m/min
   z = 0.55;
   // Furnace Properties End
   zstep = 0.01;
-  tstep = 5.0;
-  clf = 10;
+  tstep = 3.0;
+  clf = 9;
   phi = 0.9;
   vg = 0.3833;
   eb = 0.41;
@@ -92,6 +99,7 @@ int main() {
   pg = 1.205;
   as = 6*(1-eb)/(ds*phi);
   n =  z/zstep;
+  Tm = 1226 + 273.15;
   time = (int) grate_length/grate_speed;
   uddz.time = (int) uddz.len/grate_speed;
   dddz.time = (int) dddz.len/grate_speed;
@@ -114,9 +122,11 @@ int main() {
   for(it=uddz.time; it<dddz.time; it++)
     Tg[n-1][it] = 213 + 273.15;
   for(it=dddz.time; it<fz.time; it++)
-    Tg[n-1][it] = 907 + 273.15;
+    Tg[n-1][it] = 600 + 273.15;
+  for(it=fz.time; it<(cz.time-1); it++)
+	Tg[0][it] = 25 + 273.15;
 
-  printf("Initialized Tg\n");
+  /* printf("Initialized Tg\n"); */
   // All solids enter the furnace at room temp i.e. 298K
   for(iz=0;iz<n;iz++) {
 	for(it=0;it<time;it++) {
@@ -125,16 +135,16 @@ int main() {
 	  Yh2o[iz][it] = 0.131;
 	}
   }
-  printf("UDD_TIME is %d\n", uddz.time);
-  printf("DDD_TIME is %d\n", dddz.time);
-  printf("FZ_TIME is  %d\n", fz.time);
-  printf("CZ_TIME is %d\n", cz.time);
-  printf("Number of elements are %d\n", n);
+  /* printf("UDD_TIME is %d\n", uddz.time); */
+  /* printf("DDD_TIME is %d\n", dddz.time); */
+  /* printf("FZ_TIME is  %d\n", fz.time); */
+  /* printf("CZ_TIME is %d\n", cz.time); */
+  /* printf("Number of elements are %d\n", n); */
 
-  for(it=0; it<dddz.time; it++) {
+  for(it=0; it<cz.time; it++) {
 
-	if(it == fz.time)
-	  vg = 0.3833;
+	/* if(it == fz.time) */
+	/*   vg = 0.3833; */
     if(it<uddz.time){
 	  current_z = uddz;
       dp = uddz.pressure_drop;
@@ -159,17 +169,16 @@ int main() {
       P[n-1] = 0;
       fg = vg*fz.area*pg/eb;
     }
-    else {
+    else if (it<time && it>=fz.time){
       dp = cz.pressure_drop;
       start = 0;
       incr = 1;
       P[0] = 0;
       fg = vg*cz.area*pg/eb;
     }
-	/* while(abs(dp - abs(P[n-1] - P[0])) > 100) { */
-	/* iz = start; */
-	/* P[0] = 0; */
-	/* fg = vg*current_z.area*pg/eb; */
+
+	/* printf("%lf \n", vg); */
+
 	Pdiff = 0;
 	while(abs(Pdiff - dp) > 100) {
 	  iz = start;
@@ -184,6 +193,8 @@ int main() {
 
 	  val = Yh2o[iz][it]/(1-Yh2o[iz][it]);
 	  pg = 219.38*(1+val)/((0.622 + val)*Tg[iz][it]);
+	  /* if (it > fz.time) */
+	  /* 	printf("pg = %lf yh20 = %lf tg = %lf \n",  pg, Yh2o[iz][it], Tg[iz][it]); */
 
 	  //printf("Tg = %lf", Tg[iz][it]);
 
@@ -251,6 +262,14 @@ int main() {
 	  else
 		Rw = as*hgs*(Tg[iz][it]-Tdry)*Xh2o[iz]/(Hw*Xch2o);
 
+	  /* if(it > fz.time) */
+	  /* 	printf("as = %lf hgs = %lf Xh2o = %lf Yh2o = %lf \n", as, hgs, Xh2o[iz], Yh2o[iz][it]); */
+
+	  if (Ts[iz][it] > Tm)
+		Qm = (1 - 1/exp((Ts[iz][it] - Tm)/20))*ps*(1-eb);
+	  else
+		Qm = 0;
+
 	  Xo2[iz+incr] = Xo2[iz] - Rc*zstep/fg;
 
 	  Xh2o[iz+incr] = Xh2o[iz] + Rw*zstep/fg;
@@ -271,10 +290,12 @@ int main() {
 	  //printf("vg = %lf de = %lf pg = %lf ug = %lf\n", vg, de, pg, ug);
 
 	  Ts[iz][it+1] = Ts[iz][it] + (hgs*as*(Tg[iz][it] - Ts[iz][it])
-								   - Rw*Hw + Rc*Hc - Rl*Hl )*tstep/(fs*Cps);
+								   - Rw*Hw + Rc*Hc - Rl*Hl)*tstep/(fs*Cps);
 
+	  /* if (it > fz.time) { */
 	  /* printf("Ts[%d][%d] = %lf, Tg = %lf, hgs = %lf, as = %lf, Rw = %lf, Hw = %lf, fs = %lf, Cps = %lf\n", */
-	  /* iz, it, Ts[iz][it], Tg[iz][it], hgs, as, Rw, Hw, fs, Cps) */;
+	  /* 		 iz, it, Ts[iz][it], Tg[iz][it], hgs, as, Rw, Hw, fs, Cps); */
+	  /* } */
 	  //printf("Tg = %lf \t Ts = %lf \n", Tg[iz][it], Ts[iz][it]);
 
 	  //fg = fg + (Rw + Rc)*zstep;
@@ -284,18 +305,19 @@ int main() {
 	  Yh2o[iz][it+1] = Yh2o[iz][it] - Rw*tstep/fs;
 	  iz += incr;
 	}
-	/* Pdiff = (150.0*pow(1-eb, 2)*ug*vg/(pow(de,2)*pow(eb, 3)*pow(phi, 2)) + */
 	Pdiff = 1.75*pg*(1-eb)*pow(vg, 2)/(de*pow(eb, 3)*phi)*z;
 	vg = sqrt(pow(vg, 2)/Pdiff*dp);
-	/* printf("%lf\t%lf\n", Pdiff, vg); */
+
+	/* if(it >= fz.time) */
+	/*   printf("pg = %lf  de = %lf phi = %lf vg = %f pdiff = %lf \n", pg, de, phi, vg, Pdiff); */
   }
 
   }
   printf("\n");
   for(iz=n-1;iz>0;iz--){
-    for(it=0;it<uddz.time;it+=18)
-      printf("%.0lf ",Ts[iz][it] - 273.15);
-    printf("\n");
+    for(it=0;it<cz.time;it+=120)
+      printf("%.0lf  ",Ts[iz][it] - 273.15);
+    printf("\n \n");
   }
   return 0;
 }
